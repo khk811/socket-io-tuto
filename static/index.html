@@ -1,0 +1,137 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Chat App: Prep transcendence</title>
+</head>
+<body>
+	<div id="RoomInfo">
+		<input type="text" placeholder="Nickname" id="nickName">
+		<input type="text" placeholder="Room ID" id="roomId">
+		<button type="button" id="RoomInfoButton" class="inline-flex items-center justify-center rounded-lg px-4 py-3 transition duration-500 ease-in-out text-white bg-blue-500 hover:bg-blue-400 focus:outline-none">Enter The Room</button>
+	</div>
+    <div class="flex-1 p:2 sm:p-6 justify-between flex flex-col h-screen">
+        <div id="messages" class="flex flex-col space-y-4 p-3 overflow-y-auto scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-2 scrolling-touch">
+        </div>
+        <div style="display: none" id="message-form" class="border-t-2 border-gray-200 px-4 pt-4 mb-2 sm:mb-0">
+           <div class="relative flex">
+              <input type="text" id="textBox" placeholder="Write your message!" class="w-full focus:outline-none focus:placeholder-gray-400 text-gray-600 placeholder-gray-600 pl-12 bg-gray-200 rounded-md py-3">
+              <div class="absolute right-0 items-center inset-y-0 hidden sm:flex">
+                 <button type="button" id="msgsendbutton" class="inline-flex items-center justify-center rounded-lg px-4 py-3 transition duration-500 ease-in-out text-white bg-blue-500 hover:bg-blue-400 focus:outline-none">
+                    <span class="font-bold">Send</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6 ml-2 transform rotate-90">
+                       <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path>
+                    </svg>
+	                 </button>
+	              </div>
+	           </div>
+	        </div>
+	     </div>
+			 <script src="/socket.io/socket.io.js"></script>
+			 <script>
+				const messageBox = document.querySelector("#messages");
+				const textBox = document.querySelector("#textBox");
+				const sendButton = document.querySelector("#msgsendbutton");
+				const nickname = document.querySelector("#nickName");
+				const room = document.querySelector("#roomId");
+				const roomInfoButton = document.querySelector("#RoomInfoButton");
+
+				function createMessage(text, ownMessage = false) {
+					const messageElement = document.createElement("div");
+					messageElement.className = "chat-message";
+					const subMesssageElement = document.createElement("div");
+					subMesssageElement.className =
+						"px-4 py-4 rounded-lg inline-block rounded-bl-none bg-gray-300 text-gray-600";
+					if (ownMessage) {
+						subMesssageElement.className += " float-right bg-blue-800 text-white";
+					}
+					subMesssageElement.innerText = text;
+					messageElement.appendChild(subMesssageElement);
+
+					messageBox.appendChild(messageElement);
+				}
+
+				function createSysMsg(text, ownMessage = false) {
+					const messageElement = document.createElement("div");
+					messageElement.className = "chat-message";
+					const subMesssageElement = document.createElement("div");
+					subMesssageElement.className =
+						"px-4 py-4 rounded-lg inline-block rounded-bl-none bg-green-300 text-gray-600";
+					if (ownMessage) {
+						subMesssageElement.className += " float-right bg-green-300 text-black";
+					}
+					subMesssageElement.innerText = text;
+					messageElement.appendChild(subMesssageElement);
+
+					messageBox.appendChild(messageElement);
+				}
+
+				const socket = io();
+
+				let roomId;
+				let SysId;
+				let userNickName;
+
+				roomInfoButton.addEventListener("click", () => {
+					if (nickname.value != "" && room.value != "") {
+						console.log(nickname.value);
+						// nickname, room 입력을 전달
+						console.log(room.value);
+						roomId = room.value;
+						SysId = 'sysmsg' + room.value;
+						userNickName = nickname.value;
+						socket.emit('connect-user', userNickName, roomId);
+
+						// room info form 삭제
+						const roomInfoForm = document.querySelector("#RoomInfo");
+						roomInfoForm.parentNode.removeChild(roomInfoForm);
+
+						// 입력창 띄우기
+						document.getElementById("message-form").style.display = 'block';
+					}
+				})
+
+				socket.on('connect', () => {
+					console.log(socket.id);
+				});
+
+				// 시스템 메시지 (입장, 퇴장) 출력
+				socket.on('sysmsg', (targetRoom, enterMsg) => {
+					if (targetRoom == roomId) {
+						console.log(`[sysmsg] curr room: ${roomId}`);
+						console.log(`1: ${enterMsg}`);
+						createSysMsg(enterMsg);
+					} else {
+						console.log(`[sysmsg] curr room: ${roomId}`);
+					}
+				})
+
+				// 누군가 메시지 입력시
+				socket.on('receive-message', (targetRoom, message) => {
+					if (targetRoom == roomId) {
+						console.log(`[usermsg] curr room: ${roomId}`);
+						console.log(`2: ${message}`);
+						createMessage(message);
+					} else {
+						console.log(`[usermsg] curr room: ${roomId}`);
+					}
+				})
+
+				socket.on('test', (msg) => {
+					console.log(msg);
+					createMessage(msg);
+				})
+
+				sendButton.addEventListener("click", () => {
+					if (textBox.value != "") {
+						console.log(`curr room: ${roomId}`);
+						socket.emit("send-message", roomId, userNickName, textBox.value);
+						createMessage(textBox.value, true);
+						textBox.value = "";
+					}
+				});
+			</script>
+</body>
+</html>
